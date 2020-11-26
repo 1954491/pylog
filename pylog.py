@@ -33,13 +33,19 @@ def main() -> None:
         typemessage = pyin.inputMenu(['notification', 'avertissement', 'erreur'],
                                      prompt=promp,
                                      numbered=True,
-                                     default='notification')
+                                     blank=True)
+        if typemessage == "":
+            typemessage = 'notification'
+
         print()
         promp = (Fore.BLUE + "Utilisateur [" + Fore.YELLOW + getpass.getuser() + Fore.BLUE + "]: " + Fore.RESET)
-        utilisateur = pyin.inputStr(prompt=promp, default=getpass.getuser(), blockRegexes=[("[^\\s',\\w\\-]",
-                                                                                            MESSAGE_INVALIDE),
-                                                                                           ("\\t",
-                                                                                            MESSAGE_INVALIDE)])
+        utilisateur = pyin.inputStr(prompt=promp, blank=True, blockRegexes=[("[^\\s',\\w\\-]",
+                                                                             MESSAGE_INVALIDE),
+                                                                            ("\\t",
+                                                                             MESSAGE_INVALIDE)])
+        if utilisateur == "":
+            utilisateur = getpass.getuser()
+
         print()
         date = datetime.datetime.today()
         log = {'dateheure': str(date),
