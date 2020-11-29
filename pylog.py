@@ -10,6 +10,8 @@ import argparse
 import getpass
 import datetime
 import pyinputplus as pyin
+import csv
+import os
 import re
 import colorama
 from colorama import Fore
@@ -21,7 +23,7 @@ MESSAGE_INVALIDE = Fore.YELLOW + INITIALE + Fore.RED + f" Lettre, chiffre, tiret
                                                        " espace et apostrophe seulement dans le nom svp" + Fore.RESET
 OPTION_TYPE_MESSAGE = ['notification', 'avertissement', 'erreur']
 REGEX_TAB = "\\t"
-REGEX_CHAR_INVALIDE = "[^\\s',\\w\\-]"
+REGEX_CHAR_INVALIDE = "[^\\s'\\.,\\w\\-]"
 
 
 def main() -> None:
@@ -94,6 +96,18 @@ def print_log(typemessage, message, utilisateur) -> None:
            'message': message,
            'utilisateur': utilisateur}
     pprint.pprint(log)
+    fichierexiste = False
+    if os.path.exists("pylog.tsv"):
+        fichierexiste = True
+    try:
+        with open('pylog.tsv', 'a', newline='') as tsvfichier:
+            fieldnames = log.keys()
+            writer = csv.DictWriter(tsvfichier, fieldnames=fieldnames, delimiter='\t')
+            if not fichierexiste:
+                writer.writeheader()
+            writer.writerow(log)
+    except Exception as ex:
+        print(Fore.YELLOW, INITIALE, Fore.RED, ex.__class__.__name__, Fore.YELLOW, ": ", ex, Fore.RESET, sep="")
 
 
 def args_parse() -> argparse.Namespace:
