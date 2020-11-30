@@ -33,17 +33,19 @@ def main() -> None:
     """Fonction principale"""
     args = args_parse()
 
-    if args.liste:
-        if len(args.message) > 0 or args.type > 0 or args.utilisateur > 0:
+    if args.liste or args.browse:
+        if len(args.message) > 0:
             affichererreur("ArgumentError")
-        afficher_log()
+        afficher_log(args)
     else:
         if len(args.message) == 0:
             affichererreur("ArgumentError")
-        ecrire_log(args)
+        print(Fore.YELLOW, INITIALE, Fore.RESET,
+              "Svp, veuillez entrer votre message et facultativement son type et votre nom...\n")
+        main_log(args)
 
 
-def affichererreur(nomerreur)-> None:
+def affichererreur(nomerreur) -> None:
     """Affiche l'erreur"""
     print(USAGE)
     print(Fore.YELLOW, INITIALE, Fore.RED, nomerreur, Fore.YELLOW, ": Il faut spécifier un et un seul argument parmi: "
@@ -52,41 +54,23 @@ def affichererreur(nomerreur)-> None:
     exit(1)
 
 
-def afficher_log() -> None:
+def afficher_log(args) -> None:
     """Afficher les logs sauvgardée"""
     fichier = open("pylog.tsv", "r").readlines()
     doc = []
     for ligne in fichier:
         doc.append(ligne.split('\t'))
+        print(doc)
+    if args.browse:
+        print(tabulate(doc, headers="firstrow", tablefmt="html"))
+    else:
+        print(tabulate(doc, headers="firstrow"))
 
-    print(tabulate(doc, headers="firstrow"))
 
-
-def ecrire_log(args) -> None:
+def main_log(args) -> None:
     """Ecrit un log dans le fichier log"""
     try:
-        typemessage = ajout_type(args.type)
-        utilisateur = verifier_user(args.utilisateur)
-        message = ' '.join(args.message)
-        if len(args.message) == 0:
-            print(Fore.YELLOW, INITIALE, Fore.RESET,
-                  "Svp, veuillez entrer votre message et facultativement son type et votre nom...")
-            print()
-            promp = (Fore.BLUE + "Message: " + Fore.RESET)
-            message = pyin.inputStr(prompt=promp, limit=5)
-            print()
-            promp = (Fore.BLUE + "Type[" + Fore.YELLOW + "1" + Fore.BLUE + "]:\n" + Fore.RESET)
-            typemessage = pyin.inputMenu(OPTION_TYPE_MESSAGE,
-                                         prompt=promp,
-                                         numbered=True,
-                                         blank=True)
-            print()
-            promp = (Fore.BLUE + "Utilisateur [" + Fore.YELLOW + getpass.getuser() + Fore.BLUE + "]: " + Fore.RESET)
-            utilisateur = pyin.inputStr(prompt=promp, blank=True, blockRegexes=[(REGEX_CHAR_INVALIDE,
-                                                                                 MESSAGE_INVALIDE),
-                                                                                (REGEX_TAB,
-                                                                                 MESSAGE_INVALIDE)])
-        print_log(typemessage, message, utilisateur)
+        ajout_log(args)
     except pyin.RetryLimitException as ex:
         print(Fore.YELLOW, INITIALE, Fore.RED, ex.__class__.__name__,
               Fore.YELLOW, ": la limite du nombre d'essais est atteinte")
@@ -95,6 +79,22 @@ def ecrire_log(args) -> None:
         print(Fore.YELLOW, INITIALE, " ", Fore.RED, ex.__class__.__name__,
               Fore.YELLOW, ": Lettre, chiffre, tirets, espaces, et apostrophe seulement dans le nom svp", sep="")
         exit(1)
+
+
+def ajout_log(args) -> None:
+    """crée le log"""
+    typemessage = ajout_type(args.type)
+    utilisateur = verifier_user(args.utilisateur)
+    message = ' '.join(args.message)
+    if len(args.message) == 0:
+        message = pyin.inputStr(prompt=Fore.BLUE + "Message: \n" + Fore.RESET, limit=5)
+        promp = (Fore.BLUE + "Type[" + Fore.YELLOW + "1" + Fore.BLUE + "]:\n" + Fore.RESET)
+        typemessage = pyin.inputMenu(OPTION_TYPE_MESSAGE, prompt=promp, numbered=True, blank=True)
+        promp = (Fore.BLUE + "Utilisateur [" + Fore.YELLOW + getpass.getuser() + Fore.BLUE + "]: \n" + Fore.RESET)
+        utilisateur = pyin.inputStr(prompt=promp, blank=True,
+                                    blockRegexes=[(REGEX_CHAR_INVALIDE, MESSAGE_INVALIDE),
+                                                  (REGEX_TAB, MESSAGE_INVALIDE)])
+    print_log(typemessage, message, utilisateur)
 
 
 def ajout_type(arg) -> str:
@@ -125,24 +125,25 @@ def print_log(typemessage, message, utilisateur) -> None:
         utilisateur = getpass.getuser()
 
     date = datetime.datetime.today()
-    log = {'dateheure': str(date),
-           'logtype': typemessage,
-           'message': message,
-           'utilisateur': utilisateur}
+    log = {'dateheure': str(date), 'logtype': typemessage, 'message': message, 'utilisateur': utilisateur}
     pprint.pprint(log)
     fichierexiste = False
     if os.path.exists("pylog.tsv"):
         fichierexiste = True
     try:
-        with open('pylog.tsv', 'a', newline='') as tsvfichier:
-            fieldnames = log.keys()
-            writer = csv.DictWriter(tsvfichier, fieldnames=fieldnames, delimiter='\t')
-            if not fichierexiste:
-                writer.writeheader()
-            writer.writerow(log)
-        tsvfichier.close()
+        enregister(log, fichierexiste)
     except Exception as ex:
         print(Fore.YELLOW, INITIALE, Fore.RED, ex.__class__.__name__, Fore.YELLOW, ": ", ex, Fore.RESET, sep="")
+
+
+def enregister(log, fichierexiste) -> None:
+    """enregistre le log dans le fichier"""
+    with open('pylog.tsv', 'a', newline='') as tsvfichier:
+        fieldnames = log.keys()
+        writer = csv.DictWriter(tsvfichier, fieldnames=fieldnames, delimiter='\t')
+        if not fichierexiste:
+            writer.writeheader()
+        writer.writerow(log)
 
 
 def args_parse() -> argparse.Namespace:
@@ -150,34 +151,20 @@ def args_parse() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Commande pour journaliser un message -- ©2020, par Xavier Gagnon",
                                      epilog="PS si aucun argument n'est fourni, il vous seront demandés.")
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('-l', '--liste',
-                       action='store_true',
-                       help='Afficher les logs')
-    parser.add_argument('-t',
-                        metavar='{n,a,e}',
-                        dest='type',
-                        choices=['n', 'a', 'e'],
-                        help='Type de log',
+    group.add_argument('-l', '--liste', action='store_true', help='Afficher les logs')
+    group.add_argument('-b', '--browse', action='store_true', help='Afficher les logs dans le navigateur')
+    parser.add_argument('-t', metavar='{n,a,e}', dest='type', choices=['n', 'a', 'e'], help='Type de log',
                         default='notification',
                         type=str)
-    parser.add_argument('--type',
-                        metavar='{notification,avertissement,erreur}',
-                        dest='type',
+    parser.add_argument('--type', metavar='{notification,avertissement,erreur}', dest='type',
                         choices=['notification', 'avertissement', 'erreur'],
                         default='notification',
                         help='Type de log',
                         type=str)
-    parser.add_argument('-u', '--user',
-                        metavar='USER',
-                        help="Nom de l'utilisateur",
-                        dest='utilisateur',
+    parser.add_argument('-u', '--user', metavar='USER', help="Nom de l'utilisateur", dest='utilisateur',
                         default=getpass.getuser(),
                         type=str)
-    parser.add_argument('message',
-                        metavar='message',
-                        help='Message à journalier',
-                        type=str,
-                        nargs='*')
+    parser.add_argument('message', metavar='message', help='Message à journalier', type=str, nargs='*')
     return parser.parse_args()
 
 
