@@ -13,6 +13,7 @@ import pyinputplus as pyin
 import csv
 import os
 import re
+from tabulate import tabulate
 import colorama
 from colorama import Fore
 
@@ -24,12 +25,45 @@ MESSAGE_INVALIDE = Fore.YELLOW + INITIALE + Fore.RED + f" Lettre, chiffre, tiret
 OPTION_TYPE_MESSAGE = ['notification', 'avertissement', 'erreur']
 REGEX_TAB = "\\t"
 REGEX_CHAR_INVALIDE = "[^\\s'\\.,\\w\\-]"
+USAGE = "usage: pylog.py [-h] [-l] [-t{n,a,e}] [--type {notification, avertissement, erreur}] [-u USER] [message [" \
+        "message ...]] "
 
 
 def main() -> None:
     """Fonction principale"""
     args = args_parse()
 
+    if args.liste:
+        if len(args.message) > 0 or args.type > 0 or args.utilisateur > 0:
+            affichererreur("ArgumentError")
+        afficher_log()
+    else:
+        if len(args.message) == 0:
+            affichererreur("ArgumentError")
+        ecrire_log(args)
+
+
+def affichererreur(nomerreur)-> None:
+    """Affiche l'erreur"""
+    print(USAGE)
+    print(Fore.YELLOW, INITIALE, Fore.RED, nomerreur, Fore.YELLOW, ": Il faut spécifier un et un seul argument parmi: "
+                                                                   "-l, message",
+          Fore.RESET, sep="")
+    exit(1)
+
+
+def afficher_log() -> None:
+    """Afficher les logs sauvgardée"""
+    fichier = open("pylog.tsv", "r").readlines()
+    doc = []
+    for ligne in fichier:
+        doc.append(ligne.split('\t'))
+
+    print(tabulate(doc, headers="firstrow"))
+
+
+def ecrire_log(args) -> None:
+    """Ecrit un log dans le fichier log"""
     try:
         typemessage = ajout_type(args.type)
         utilisateur = verifier_user(args.utilisateur)
@@ -106,6 +140,7 @@ def print_log(typemessage, message, utilisateur) -> None:
             if not fichierexiste:
                 writer.writeheader()
             writer.writerow(log)
+        tsvfichier.close()
     except Exception as ex:
         print(Fore.YELLOW, INITIALE, Fore.RED, ex.__class__.__name__, Fore.YELLOW, ": ", ex, Fore.RESET, sep="")
 
@@ -114,11 +149,15 @@ def args_parse() -> argparse.Namespace:
     """Fonction qui parse les arguments"""
     parser = argparse.ArgumentParser(description="Commande pour journaliser un message -- ©2020, par Xavier Gagnon",
                                      epilog="PS si aucun argument n'est fourni, il vous seront demandés.")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('-l', '--liste',
+                       action='store_true',
+                       help='Afficher les logs')
     parser.add_argument('-t',
                         metavar='{n,a,e}',
                         dest='type',
                         choices=['n', 'a', 'e'],
-                        help='type de log',
+                        help='Type de log',
                         default='notification',
                         type=str)
     parser.add_argument('--type',
@@ -126,7 +165,7 @@ def args_parse() -> argparse.Namespace:
                         dest='type',
                         choices=['notification', 'avertissement', 'erreur'],
                         default='notification',
-                        help='type de log',
+                        help='Type de log',
                         type=str)
     parser.add_argument('-u', '--user',
                         metavar='USER',
